@@ -6,7 +6,6 @@ from multiprocessing import Process, Manager
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
-    argv += ('-i','192.168.0.154','-pl','1')
     Beer_programming(**arg_parse(argv)).play()
 
 def arg_parse(args:list, arg_dict:dict=
