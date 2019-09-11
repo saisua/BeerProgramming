@@ -1,5 +1,5 @@
-import Client, front
-from wx import App
+import Client #, front
+#from wx import App
 from multiprocessing import Process
 import logging
 import multiprocessing_logging
@@ -8,7 +8,6 @@ def main():
     multiprocessing_logging.install_mp_handler()
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
-    argv += ('-i','192.168.0.154')
     Beer_programming(**arg_parse(argv)).play(False)
 
 def arg_parse(args:list, arg_dict:dict=
