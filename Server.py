@@ -1,4 +1,4 @@
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 import multiprocessing_logging
 import socket
 import logging
@@ -31,7 +31,7 @@ class Server():
         logging.debug(f"Server.__init__(self, {ip}, {port}, {password}, {max_connections})")
         self._clients_process = []
         self._clients_p_obj = []
-        self._p_obj_from_port = {}
+        self._p_obj_from_port = Manager().dict()
         
         self.order_dict = order_dict
 
