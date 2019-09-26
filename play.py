@@ -34,7 +34,7 @@ class Beer_programming():
         
         self.orders = {""}
 
-        if(not ip is None): self.client.connect(ip,port)
+        if(not ip is None): self.connect(ip,port)
 
     def play(self, gui:bool=True):
         logging.debug(f"BeerProgramming.play(self, {gui})")
@@ -57,8 +57,16 @@ class Beer_programming():
     def _play_process(self):
         order = -1
         while(order != 'end'):
-            self.client.send_to_server(input("> "))
-            order = self.listen()
+            order = input("> ")
+            self.client.send_to_server(order)
+            while(";;" in order):
+                order = order.replace(";;",';')
+                try:
+                    order = self.listen()
+                
+                except: pass
+                
+                print(order)
 
     def connect(self, ip:str, port:int=12412):
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")

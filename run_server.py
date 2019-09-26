@@ -1,7 +1,9 @@
-import Server
+import Server2 as Server
 import logging
 import multiprocessing_logging
 from multiprocessing import Process, Manager
+
+import time
 
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
@@ -27,30 +29,33 @@ def arg_parse(args:list, arg_dict:dict=
     return final
     
 class Beer_programming():
-    def __init__(self, ip:str=None, port:int=12412, player_num:int=2):
+    def __init__(self, ip:str=None, port:int=12412, player_num:int=1):
         self.serv = Server.Server(ip, int(port), order_dict=
                                 {"--add_player":self.add_player,
-                                "--send_players":self.send_players})
+                                "--send_players":self.send_players,
+                                "--chat":self.add_chat,"--send_chat":self.send_chat})
         
         self.players = Manager().dict()
         
+        self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
-        
-        print("Good process")
-        print(self.players)
-        import time
-        
-        while(True):
-            time.sleep(5)
-            print(self.players)
         
     def play(self): pass
         
-    def add_player(self, port:int, name:str):
-        self.players[port] = name
+    def add_player(self, addr:int, name:str):
+        self.players[addr] = name
 
-    def send_players(self, port:int):
-        self.serv._p_obj_from_port[port].sendall(str(self.players))
+    def send_players(self, addr:int):
+        self.serv.sendto(self.players, addr)
+        
+    def add_chat(self, addr:int, text:str):
+        self.chat.append([addr, text])
+        
+    def send_chat(self, addr:int, last:int=0):
+        if(last >= len(self.chat) or last < 0): return
+        for mssg in self.chat[last:-1]:
+            self.serv.sendto(f"{mssg};;",addr)
+        self.serv.sendto(self.chat[-1],addr)
         
 if __name__ == "__main__":
     main()
