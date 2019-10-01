@@ -1,4 +1,4 @@
-import Server2 as Server
+import Server
 import logging
 import multiprocessing_logging
 from multiprocessing import Process, Manager
@@ -33,29 +33,38 @@ class Beer_programming():
         self.serv = Server.Server(ip, int(port), order_dict=
                                 {"--add_player":self.add_player,
                                 "--send_players":self.send_players,
-                                "--chat":self.add_chat,"--send_chat":self.send_chat})
+                                "--chat":self.add_chat,"--send_chat":self.send_chat,
+                                "--play":self.play})
         
         self.players = Manager().dict()
         
         self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
         
-    def play(self): pass
+    def play(self, addr:tuple):
+        order = -1
+        while(order != 'exit'):
+            try:
+                order = input("> ")
+                self.serv.sendto(order,addr)
+            except: pass
+            print(order)
         
-    def add_player(self, addr:int, name:str):
+    def add_player(self, addr:tuple, name:str):
         self.players[addr] = name
 
-    def send_players(self, addr:int):
+    def send_players(self, addr:tuple):
         self.serv.sendto(self.players, addr)
         
-    def add_chat(self, addr:int, text:str):
+    def add_chat(self, addr:tuple, text:str):
         self.chat.append([addr, text])
         
-    def send_chat(self, addr:int, last:int=0):
+    def send_chat(self, addr:tuple, last:int=0):
         if(last >= len(self.chat) or last < 0): return
         for mssg in self.chat[last:-1]:
             self.serv.sendto(f"{mssg};;",addr)
         self.serv.sendto(self.chat[-1],addr)
+        
         
 if __name__ == "__main__":
     main()

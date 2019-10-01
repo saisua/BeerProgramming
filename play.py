@@ -3,6 +3,12 @@ import Client #, front
 from multiprocessing import Process
 import logging
 import multiprocessing_logging
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+from selenium import webdriver
 
 def main():
     multiprocessing_logging.install_mp_handler()
@@ -32,11 +38,11 @@ class Beer_programming():
         self.client = Client.Client()
         self.listener = None
         
-        self.orders = {""}
+        self.orders = {"compile":self.compile}
 
         if(not ip is None): self.connect(ip,port)
 
-    def play(self, gui:bool=True):
+    def play(self, gui:bool=True) -> None:
         logging.debug(f"BeerProgramming.play(self, {gui})")
         name = False
         while(not name):
@@ -47,6 +53,8 @@ class Beer_programming():
         self.client.send_to_server(f"--add_player;{name}")
         logging.debug("Sent alias to server")
     
+        self.start_compiler()
+    
         if(gui): 
             play_pro = Process(target=self._play_process)
             play_pro.start()
@@ -54,9 +62,9 @@ class Beer_programming():
             play_pro.join()
         else: self._play_process()
             
-    def _play_process(self):
+    def _play_process(self) -> None:
         order = -1
-        while(order != 'end'):
+        while(order != 'exit'):
             order = input("> ")
             self.client.send_to_server(order)
             while(";;" in order):
@@ -67,12 +75,12 @@ class Beer_programming():
                 except: pass
                 
                 print(order)
-
-    def connect(self, ip:str, port:int=12412):
+ 
+    def connect(self, ip:str, port:int=12412) -> None:
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")
         self.listener = self.client.connect(ip,port)
 
-    def listen(self, listener:"generator"=None):
+    def listen(self, listener:"generator"=None)-> str:
         #logging.debug(f"BeerProgramming.listen(self, {listener})")
         if(listener is None):
             if(self.listener is None): return
@@ -93,6 +101,42 @@ class Beer_programming():
         self.text_list = {self.name:panel.add_text((0,0),"(%1,%0.2)", self.name)}
         
         app.MainLoop()
+        
+    def start_compiler(self) -> None:
+        firefox_capabilities = DesiredCapabilities.FIREFOX
+        firefox_capabilities['marionette'] = True
+
+        options = webdriver.firefox.options.Options()
+        
+        profile = webdriver.FirefoxProfile()
+        
+        logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
+        self.driver = webdriver.Firefox(executable_path=(
+                __file__).replace("crawler2.py", "geckodriver"),
+                options=options, firefox_profile=profile) #firefox_binary=binary,
+        logging.info("Drivers ran succesfully!")
+        
+        self.driver.get("https://www.onlinegdb.com/online_java_compiler")
+        self.tab = self.driver.current_window_handle
+        
+        self.driver.find_element(By.ClassName, "glyphicon glyphicon-menu-left").click()
+        
+    def compile(self) -> int:
+        self.driver.switch_to.window(self.tab)
+        
+        self.driver.find_element(By.ClassName, "glyphicon glyphicon-play").click()
+        
+        time.sleep(3)
+        
+        self.driver.switch_to.window(self.tab)
+        
+        return len(self.driver.find_elements(By.ClassName, "error_line"))
+        
+        
+        
+        
+        
+        
         
 if __name__ == "__main__":
     main()

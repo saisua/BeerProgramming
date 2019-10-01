@@ -46,6 +46,7 @@ class Client():
                 if(timeout > 9): break
             elif(decoded_data != ''):
                 timeout = 0
+                del data, decoded_data
                 yield decoded_data
 
     def send_to_server(self, data:str):
