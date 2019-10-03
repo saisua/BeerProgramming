@@ -35,7 +35,7 @@ class Client():
     def listen(self, server:socket.socket) -> "generator":
         timeout = 0
         
-        server.settimeout(10)
+        #server.settimeout(10)
 
         while(True):
             data = server.recv(1024)
@@ -46,7 +46,7 @@ class Client():
                 if(timeout > 9): break
             elif(decoded_data != ''):
                 timeout = 0
-                del data, decoded_data
+                del data
                 yield decoded_data
 
     def send_to_server(self, data:str):

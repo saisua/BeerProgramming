@@ -2,6 +2,7 @@ import Server
 import logging
 import multiprocessing_logging
 from multiprocessing import Process, Manager
+from re import findall
 
 import time
 
@@ -34,24 +35,61 @@ class Beer_programming():
                                 {"--add_player":self.add_player,
                                 "--send_players":self.send_players,
                                 "--chat":self.add_chat,"--send_chat":self.send_chat,
-                                "--play":self.play})
+                                "--play":self.play,
+                                "--drink":self.drink})
         
         self.players = Manager().dict()
-        
+        self.players_drinks = Manager().dict()
+        self.players_last_drink = Manager().dict()
+
+
         self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
         
     def play(self, addr:tuple):
-        order = -1
-        while(order != 'exit'):
-            try:
-                order = input("> ")
-                self.serv.sendto(order,addr)
-            except: pass
-            print(order)
+        logging.debug(f"play({addr})")
         
+        new_order = input("> ")
+        self.serv.sendto(new_order,addr)
+
+        while(new_order):
+            order,new_order = new_order,''
+            for meta in findall(";;|->",order):
+                if(meta == ";;"):
+                    new_order = input("> ")
+                    self.serv.sendto(new_order,addr)
+                else: #if(meta == "->"):
+                    timeout = 0
+                    while(True):
+                        data = self.serv._client_from_addr[addr].recv(1024)
+                        decoded_data = data.decode("utf-8")
+
+                        if(data is None):
+                            timeout += 1
+                            logging.debug(f"Timeout of user {addr} increased to {timeout}")
+                            if(timeout > 9): 
+                                logging.warning(f"User {addr} has disconnected")
+                                break
+                        elif(decoded_data != ''):
+                            timeout = 0
+                            logging.info(f"Recived data '{decoded_data}' from address {addr}")
+                    
+                            new_order += decoded_data
+
+                            decoded_data = decoded_data.replace("->",'').replace("<-",'')
+
+                            self.serv.parse_data(decoded_data, addr)
+                            break
+    
+
+    # Game related functions
+
     def add_player(self, addr:tuple, name:str):
         self.players[addr] = name
+        exists = self.players_drinks.get(addr, None)
+        if(exists is None):
+            self.players_drinks[addr] = 0
+            self.players_last_drink[addr] = False
 
     def send_players(self, addr:tuple):
         self.serv.sendto(self.players, addr)
@@ -65,6 +103,13 @@ class Beer_programming():
             self.serv.sendto(f"{mssg};;",addr)
         self.serv.sendto(self.chat[-1],addr)
         
-        
+    def drink(self, addr:tuple, drinks:int=1):
+        print(f"Player {addr} drinks {drinks}")
+        self.players_drinks[addr] += int(drinks)
+        self.players_last_drink[addr] = int(drinks)
+
+        #Later it can be modified by a lambda
+        self.serv.sendto(f"--drink;{drinks};;",addr)
+
 if __name__ == "__main__":
     main()

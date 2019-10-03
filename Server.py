@@ -7,7 +7,7 @@ def main():
 class Server():
     def __init__(self, ip:str=None, port:int=12412, password:str=None, max_connections:int=-1,
                         order_dict:dict={}):
-        self.threaded = False
+        self.threaded = [False, False]
         
         logging.debug(f"Server.__init__(self, {ip}, {port}, {password}, {max_connections})")
         #self._clients_process = []
@@ -23,6 +23,10 @@ class Server():
             ip = socket.gethostbyname_ex(socket.gethostname())[-1]
             if(type(ip) is list or type(ip) is tuple): ip = ip[-1]
             logging.warning(f"Ip set automatically to {ip}")
+
+            ip = "127.0.0.1"
+            logging.warning(f"Ip set automatically to {ip}")
+
         self.ip = ip
         self.port = int(port)
 
@@ -41,12 +45,17 @@ class Server():
         if(port is None): port = self.port
         else: self.port = int(port)
             
-        process = []
-        for _ in range(connections):
-            process.append(Process(target=self.new_connection, args=(ip, port)))
-            process[-1].start()
-            
-        for conn in process: conn.join()
+        process = [] #miau
+        if(self.threaded[0]):
+            for _ in range(connections):
+                process.append(Process(target=self.new_connection, args=(ip, port)))
+                
+                print("stop")
+
+                process[-1].start()
+                
+            for conn in process: conn.join()
+        else: self.new_connection(ip, port)
     
     
     def new_connection(self, ip:str=None, port:int=None):
@@ -64,15 +73,20 @@ class Server():
         
         self._client_from_addr[addr] = listener
         self.open[addr] = True
-        self._process_from_addr[addr] = Process(target=self.listen, args=(listener, addr))#, daemon=True)
-        self._process_from_addr[addr].start()
+
+        if(self.threaded[1]):
+            self._process_from_addr[addr] = Process(target=self.listen, args=(addr))#, daemon=True)
+            self._process_from_addr[addr].start()
+        else: self.listen(addr)
     
     def sendto(self, message:str, addr:tuple):
         self._client_from_addr[addr].sendto(bytes(str(message), "utf-8"), addr)
     
-    def listen(self, listener, addr):
+    def listen(self, addr):
         logging.debug("Client_p_obj.listen(self)")
         if(not self.open[addr]): return
+
+        listener = self._client_from_addr[addr]
         
         with listener:
             timeout = 0
@@ -146,5 +160,3 @@ class Server():
             try:
                 order(*args)
             except Exception as err: print(f"ERROR: {err}")
-    
-    

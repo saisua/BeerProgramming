@@ -1,5 +1,5 @@
-import Client #, front
-#from wx import App
+import Client , front
+from wx import App
 from multiprocessing import Process
 import logging
 import multiprocessing_logging
@@ -9,6 +9,8 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium import webdriver
+from re import findall
+import time
 
 def main():
     multiprocessing_logging.install_mp_handler()
@@ -38,7 +40,8 @@ class Beer_programming():
         self.client = Client.Client()
         self.listener = None
         
-        self.orders = {"compile":self.compile}
+        self.order_dict = {"--compile":self.compile,
+                            "--drink":self.drink}
 
         if(not ip is None): self.connect(ip,port)
 
@@ -63,19 +66,24 @@ class Beer_programming():
         else: self._play_process()
             
     def _play_process(self) -> None:
-        order = -1
-        while(order != 'exit'):
-            order = input("> ")
-            self.client.send_to_server(order)
-            while(";;" in order):
-                order = order.replace(";;",';')
-                try:
-                    order = self.listen()
-                
-                except: pass
-                
-                print(order)
- 
+        new_order = input("> ")
+        self.client.send_to_server(new_order)
+        while(new_order):
+            order,new_order = new_order,''
+            for meta in findall(";;|<-",order):
+                if(meta == "<-"):
+                    new_order += input("> ")
+                    self.client.send_to_server(order)
+                else: #if(meta == ";;"):
+                    decoded_data = self.listen()
+
+                    new_order += decoded_data
+
+                    decoded_data = decoded_data.replace("->",'').replace("<-",'')
+
+                    self.parse_data(decoded_data)
+                    break
+
     def connect(self, ip:str, port:int=12412) -> None:
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")
         self.listener = self.client.connect(ip,port)
@@ -112,30 +120,64 @@ class Beer_programming():
         
         logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
         self.driver = webdriver.Firefox(executable_path=(
-                __file__).replace("crawler2.py", "geckodriver"),
+                __file__).replace("play.py", "geckodriver"),
                 options=options, firefox_profile=profile) #firefox_binary=binary,
         logging.info("Drivers ran succesfully!")
         
         self.driver.get("https://www.onlinegdb.com/online_java_compiler")
         self.tab = self.driver.current_window_handle
         
-        self.driver.find_element(By.ClassName, "glyphicon glyphicon-menu-left").click()
+        self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-menu-left']").click()
+
+
+    def parse_data(self, data:str):
+        #print(f"parse_data {data}")
+        order = None
+        args = ()
+        for arg in data.split(';'):
+            new_ord = self.order_dict.get(arg.strip(), None)
+            print(f"arg:{arg}, new_ord:{new_ord}")
+            if(not new_ord is None):
+                if(not order is None): 
+                    print(f"{order}{args}")
+                    try:
+                        order(*args)
+                    except Exception as err: print(f"ERROR: {err}")
+                    
+                order = new_ord
+                args = ()
+                
+            elif(arg.strip() != ''): args+=(arg.strip(),)
+            
+        if(not order is None): 
+            print(f"{order}{args}.")
+            try:
+                order(*args)
+            except Exception as err:
+                print(order)
+                print(args)
+                raise err
+                print(f"ERROR: {err}.")
         
+
+    # Game related functions
+
     def compile(self) -> int:
         self.driver.switch_to.window(self.tab)
         
-        self.driver.find_element(By.ClassName, "glyphicon glyphicon-play").click()
+        self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
         
         time.sleep(3)
         
         self.driver.switch_to.window(self.tab)
         
-        return len(self.driver.find_elements(By.ClassName, "error_line"))
-        
-        
-        
-        
-        
+        try:
+            self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}")
+        except:
+            self.client.send_to_server('--drink;0')
+
+    def drink(self, drinks:str='0'):
+        self.driver.execute_script(f"alert('Drink {drinks} times');", [])        
         
         
 if __name__ == "__main__":
