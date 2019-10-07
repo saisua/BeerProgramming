@@ -3,6 +3,7 @@ import logging
 import time
 
 def main():
+    return
     import sys
     #multiprocessing_logging.install_mp_handler()
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)

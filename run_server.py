@@ -2,9 +2,9 @@ import Server
 import logging
 import multiprocessing_logging
 from multiprocessing import Process, Manager
-from re import findall
+from re import finditer, sub
 
-import time
+from time import sleep
 
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
@@ -30,7 +30,8 @@ def arg_parse(args:list, arg_dict:dict=
     return final
     
 class Beer_programming():
-    def __init__(self, ip:str=None, port:int=12412, player_num:int=1):
+    def __init__(self, ip:str=None, port:int=12412, player_num:int=1, 
+                        compile_time:int=240):
         self.serv = Server.Server(ip, int(port), order_dict=
                                 {"--add_player":self.add_player,
                                 "--send_players":self.send_players,
@@ -42,28 +43,29 @@ class Beer_programming():
         self.players_drinks = Manager().dict()
         self.players_last_drink = Manager().dict()
 
+        self.compile_time = compile_time
+
+        self.last_state = ';;'
 
         self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
         
     def play(self, addr:tuple):
         logging.debug(f"play({addr})")
-        
-        new_order = input("> ")
-        self.serv.sendto(new_order,addr)
-
+        new_order = self.last_state
         while(new_order):
             order,new_order = new_order,''
-            for meta in findall(";;|->",order):
-                if(meta == ";;"):
+            for meta in finditer(";;|->|::|</+",order):
+                if(meta.group(0) == ";;" or meta.group(0) == "<+"):
                     new_order = input("> ")
+                    if(new_order[0] =="#"): new_order = eval(new_order)
+                    
                     self.serv.sendto(new_order,addr)
-                else: #if(meta == "->"):
+                else: #if(meta.group(0) == "->"):
                     timeout = 0
                     while(True):
                         data = self.serv._client_from_addr[addr].recv(1024)
                         decoded_data = data.decode("utf-8")
-
                         if(data is None):
                             timeout += 1
                             logging.debug(f"Timeout of user {addr} increased to {timeout}")
@@ -76,11 +78,20 @@ class Beer_programming():
                     
                             new_order += decoded_data
 
-                            decoded_data = decoded_data.replace("->",'').replace("<-",'')
+                            logging.debug(f"Decoded data: {decoded_data}")
+
+                            decoded_data = sub("<-|->|::|[</+]|[/+>]",'',decoded_data)
 
                             self.serv.parse_data(decoded_data, addr)
                             break
+            else: 
+                self.last_state = meta.group(0)
+                logging.debug(f"Last state set to {self.last_state}")
     
+    def set_state(self, state:str):
+        self.last_state = state.replace(' ','')
+        
+    # Ausiàs cabro pegali a ton pare
 
     # Game related functions
 
@@ -91,8 +102,12 @@ class Beer_programming():
             self.players_drinks[addr] = 0
             self.players_last_drink[addr] = False
 
-    def send_players(self, addr:tuple):
-        self.serv.sendto(self.players, addr)
+    def send_players(self, addr:tuple, last:int=0):
+        players = list(self.players.items())
+        if(last >= len(players) or last < 0): return
+        for player in players[last:-1]:
+            self.serv.sendto(f"--add_player;{player};;", addr)
+        self.serv.sendto(f"--add_player;{players[-1]}", addr)
         
     def add_chat(self, addr:tuple, text:str):
         self.chat.append([addr, text])
@@ -100,8 +115,8 @@ class Beer_programming():
     def send_chat(self, addr:tuple, last:int=0):
         if(last >= len(self.chat) or last < 0): return
         for mssg in self.chat[last:-1]:
-            self.serv.sendto(f"{mssg};;",addr)
-        self.serv.sendto(self.chat[-1],addr)
+            self.serv.sendto(f"--add_chat;{mssg};;",addr)
+        self.serv.sendto(f"--add_chat;{self.chat[-1]}",addr)
         
     def drink(self, addr:tuple, drinks:int=1):
         print(f"Player {addr} drinks {drinks}")
@@ -109,7 +124,10 @@ class Beer_programming():
         self.players_last_drink[addr] = int(drinks)
 
         #Later it can be modified by a lambda
-        self.serv.sendto(f"--drink;{drinks};;",addr)
+        self.serv.sendto(f"--drink;{drinks}",addr)
+
+    def sleep(self):
+        pass #self.
 
 if __name__ == "__main__":
     main()

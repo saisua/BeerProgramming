@@ -2,7 +2,7 @@ from multiprocessing import Process, Manager
 import socket, logging
 
 def main():
-    pass
+    logging.error("Run run_server instead")
     
 class Server():
     def __init__(self, ip:str=None, port:int=12412, password:str=None, max_connections:int=-1,
@@ -45,8 +45,8 @@ class Server():
         if(port is None): port = self.port
         else: self.port = int(port)
             
-        process = [] #miau
         if(self.threaded[0]):
+            process = [] #miau
             for _ in range(connections):
                 process.append(Process(target=self.new_connection, args=(ip, port)))
                 
@@ -60,7 +60,7 @@ class Server():
     
     def new_connection(self, ip:str=None, port:int=None):
         logging.debug(f"Server.new_connection(self, {ip}, {port})")
-        if(self.max_connections + 1 and len(self._clients_p_obj) >= self.max_connections): return
+        if(self.max_connections + 1 and len(self._client_from_addr) >= self.max_connections): return
     
         if(ip is None): ip = self.ip
         if(port is None): port = self.port
@@ -75,18 +75,16 @@ class Server():
         self.open[addr] = True
 
         if(self.threaded[1]):
-            self._process_from_addr[addr] = Process(target=self.listen, args=(addr))#, daemon=True)
+            self._process_from_addr[addr] = Process(target=self.listen, args=(addr, listener))#, daemon=True)
             self._process_from_addr[addr].start()
-        else: self.listen(addr)
+        else: self.listen(addr,listener)
     
     def sendto(self, message:str, addr:tuple):
         self._client_from_addr[addr].sendto(bytes(str(message), "utf-8"), addr)
     
-    def listen(self, addr):
-        logging.debug("Client_p_obj.listen(self)")
+    def listen(self, addr, listener):
+        logging.debug("Client.listen(self)")
         if(not self.open[addr]): return
-
-        listener = self._client_from_addr[addr]
         
         with listener:
             timeout = 0

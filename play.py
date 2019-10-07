@@ -9,7 +9,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium import webdriver
-from re import findall
+from re import finditer, sub
 import time
 
 def main():
@@ -41,9 +41,21 @@ class Beer_programming():
         self.listener = None
         
         self.order_dict = {"--compile":self.compile,
-                            "--drink":self.drink}
+                            "--drink":self.drink,
+                            "--add_player":self.add_player,
+                            "--add_chat":self.add_chat,
+
+                            "--_print":self.__print_gui,
+                            "--_start":self.start_compiler}
+
+        self.players = {}
+        self.chat = []
+        self.drinks = 0
+
+        self.last_state = ';;'
 
         if(not ip is None): self.connect(ip,port)
+        else: self.connect("127.0.0.1", port)
 
     def play(self, gui:bool=True) -> None:
         logging.debug(f"BeerProgramming.play(self, {gui})")
@@ -55,8 +67,10 @@ class Beer_programming():
         
         self.client.send_to_server(f"--add_player;{name}")
         logging.debug("Sent alias to server")
+        self.client.send_to_server("--play;;")
+        logging.debug("Sent play petition to server")
     
-        self.start_compiler()
+        #self.start_compiler()
     
         if(gui): 
             play_pro = Process(target=self._play_process)
@@ -66,23 +80,29 @@ class Beer_programming():
         else: self._play_process()
             
     def _play_process(self) -> None:
-        new_order = input("> ")
-        self.client.send_to_server(new_order)
+        new_order = self.last_state
         while(new_order):
             order,new_order = new_order,''
-            for meta in findall(";;|<-",order):
-                if(meta == "<-"):
+            for meta in finditer(";;|<-|::|/+>",order):
+                if(meta.group(0) == "<-" or meta.group(0) == "::"):
                     new_order += input("> ")
-                    self.client.send_to_server(order)
-                else: #if(meta == ";;"):
+                    if(new_order[0] =="#"): new_order = eval(new_order)
+
+                    self.client.send_to_server(new_order)
+                else: #if(meta.group(0) == ";;"):
                     decoded_data = self.listen()
 
                     new_order += decoded_data
 
-                    decoded_data = decoded_data.replace("->",'').replace("<-",'')
+                    logging.debug(f"Decoded_data: {decoded_data}")
+
+                    decoded_data = sub("<-|->|::|[</+]|[/+>]",'',decoded_data)
 
                     self.parse_data(decoded_data)
                     break
+            else: 
+                self.last_state = meta.group(0)
+                logging.debug(f"Last state set to {self.last_state}")
 
     def connect(self, ip:str, port:int=12412) -> None:
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")
@@ -174,11 +194,28 @@ class Beer_programming():
         try:
             self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}")
         except:
-            self.client.send_to_server('--drink;0')
+            self.client.send_to_server(f'--drink;0')
 
     def drink(self, drinks:str='0'):
+        logging.info(f"Recieved order to drink {drinks} times")
         self.driver.execute_script(f"alert('Drink {drinks} times');", [])        
         
+    def add_player(self, player:"str(addr, name)"):
+        addr, name = eval(player)
+        logging.info(f"Added new player {name} ({addr})")
+        self.players[addr] = name
+
+    def add_chat(self, text:str):
+        self.chat.append(eval(text))
+
+    def __print_gui(self):
+        print()
+        print(f"Chat: {self.chat}")
+        print()
+        print(f"Players: {self.players}")
+        print()
+        print(f"Drinks:{self.drinks}")
+        print()
         
 if __name__ == "__main__":
     main()
