@@ -52,7 +52,11 @@ class Beer_programming():
         self.chat = []
         self.drinks = 0
 
-        self.last_state = ';;'
+        self.conn_step = [";;"]
+        self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
+                                "Serv_listen":"->", "Serv_send":"<_",
+                                "Client_listen":"<-", "Client_send":"<_",
+                                "Urgency":"!!", "Evaluate":"#"}
 
         if(not ip is None): self.connect(ip,port)
         else: self.connect("127.0.0.1", port)
@@ -65,9 +69,9 @@ class Beer_programming():
             name = name if input("Confirm?[Y/n] ").lower() in ["y","ye","yes","s","si"] else False
         self.name = name
         
-        self.client.send_to_server(f"--add_player;{name}")
+        self.client.send_to_server(f"--add_player;{name}{self.conn_symbols['Client_to_Serv']}")
         logging.debug("Sent alias to server")
-        self.client.send_to_server("--play;;")
+        self.client.send_to_server(f"--play{self.conn_symbols['Serv_to_Client']}")
         logging.debug("Sent play petition to server")
     
         #self.start_compiler()
@@ -80,29 +84,30 @@ class Beer_programming():
         else: self._play_process()
             
     def _play_process(self) -> None:
-        new_order = self.last_state
-        while(new_order):
-            order,new_order = new_order,''
-            for meta in finditer(";;|<-|::|/+>",order):
-                if(meta.group(0) == "<-" or meta.group(0) == "::"):
-                    new_order += input("> ")
-                    if(new_order[0] =="#"): new_order = eval(new_order)
+        while(len(self.conn_step)):
+            
+            step = self.conn_step[0]
+            self.conn_step.pop(0)
 
-                    self.client.send_to_server(new_order)
-                else: #if(meta.group(0) == ";;"):
-                    decoded_data = self.listen()
+            if(step == self.conn_symbols["Client_to_Serv"] or step == self.conn_symbols["Client_send"]):
+                decoded_data = input("> ")
+                if(step == self.conn_symbols["Evaluate"]): decoded_data = eval(decoded_data)
 
-                    new_order += decoded_data
+                self.symbol_parse(decoded_data)
+                
+                self.client.send_to_server(decoded_data)
+            elif(step == self.conn_symbols["Serv_to_Client"] or step == self.conn_symbols["Client_listen"]):
+                decoded_data = self.listen()
 
-                    logging.debug(f"Decoded_data: {decoded_data}")
+                logging.info(f"Recived data '{decoded_data}' from server")
+        
+                self.symbol_parse(decoded_data)
 
-                    decoded_data = sub("<-|->|::|[</+]|[/+>]",'',decoded_data)
+                decoded_data = sub(f'|'.join(self.conn_symbols.values()),'',decoded_data)
 
-                    self.parse_data(decoded_data)
-                    break
-            else: 
-                self.last_state = meta.group(0)
-                logging.debug(f"Last state set to {self.last_state}")
+                self.data_parse(decoded_data)
+                    
+            logging.debug(f"Conn_steps: {self.conn_step}")
 
     def connect(self, ip:str, port:int=12412) -> None:
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")
@@ -149,9 +154,8 @@ class Beer_programming():
         
         self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-menu-left']").click()
 
-
-    def parse_data(self, data:str):
-        #print(f"parse_data {data}")
+    def data_parse(self, data:str):
+        #print(f"data_parse {data}")
         order = None
         args = ()
         for arg in data.split(';'):
@@ -178,6 +182,20 @@ class Beer_programming():
                 print(args)
                 raise err
                 print(f"ERROR: {err}.")
+
+    def symbol_parse(self, command:str):
+        urgent = False
+        num = 0 
+        for symbol in finditer('|'.join(self.conn_symbols.values()), command):
+            if(symbol.group(0) == self.conn_symbols["Urgency"]):
+                urgent = True
+            else:
+                if(urgent):
+                    self.conn_step.insert(0, symbol.group(0))
+                    urgent = False
+                    num += 1
+                else:
+                    self.conn_step.append(symbol.group(0))
         
 
     # Game related functions
@@ -192,9 +210,10 @@ class Beer_programming():
         self.driver.switch_to.window(self.tab)
         
         try:
-            self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}")
+            self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}"
+                                        f"{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
         except:
-            self.client.send_to_server(f'--drink;0')
+            self.client.send_to_server(f"--drink;0{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
 
     def drink(self, drinks:str='0'):
         logging.info(f"Recieved order to drink {drinks} times")
