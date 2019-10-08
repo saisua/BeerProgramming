@@ -45,51 +45,68 @@ class Beer_programming():
 
         self.compile_time = compile_time
 
-        self.last_state = ';;'
+        self.conn_step = [";;"]
+        self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
+                                "Serv_listen":"->", "Serv_send":"<_",
+                                "Client_listen":"<-", "Client_send":"<_",
+                                "Urgency":"!!", "Evaluate":"#"}
 
         self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
         
     def play(self, addr:tuple):
         logging.debug(f"play({addr})")
-        new_order = self.last_state
-        while(new_order):
-            order,new_order = new_order,''
-            for meta in finditer(";;|->|::|</+",order):
-                if(meta.group(0) == ";;" or meta.group(0) == "<+"):
-                    new_order = input("> ")
-                    if(new_order[0] =="#"): new_order = eval(new_order)
-                    
-                    self.serv.sendto(new_order,addr)
-                else: #if(meta.group(0) == "->"):
-                    timeout = 0
-                    while(True):
-                        data = self.serv._client_from_addr[addr].recv(1024)
-                        decoded_data = data.decode("utf-8")
-                        if(data is None):
-                            timeout += 1
-                            logging.debug(f"Timeout of user {addr} increased to {timeout}")
-                            if(timeout > 9): 
-                                logging.warning(f"User {addr} has disconnected")
-                                break
-                        elif(decoded_data != ''):
-                            timeout = 0
-                            logging.info(f"Recived data '{decoded_data}' from address {addr}")
-                    
-                            new_order += decoded_data
 
-                            logging.debug(f"Decoded data: {decoded_data}")
+        while(len(self.conn_step)):
 
-                            decoded_data = sub("<-|->|::|[</+]|[/+>]",'',decoded_data)
+            step = self.conn_step[0]
+            self.conn_step.pop(0)
 
-                            self.serv.parse_data(decoded_data, addr)
+            if(step == self.conn_symbols["Serv_to_Client"] or step == self.conn_symbols["Serv_send"]):
+                decoded_data = input("> ")
+                if(step == self.conn_symbols["Evaluate"]): decoded_data = eval(decoded_data)
+
+                self.symbol_parse(decoded_data)
+                
+                self.serv.sendto(decoded_data,addr)
+                
+            elif(step == self.conn_symbols["Client_to_Serv"] or step == self.conn_symbols["Serv_listen"]):
+                timeout = 0
+                while(True):
+                    data = self.serv._client_from_addr[addr].recv(1024)
+                    decoded_data = data.decode("utf-8")
+                    if(data is None):
+                        timeout += 1
+                        logging.debug(f"Timeout of user {addr} increased to {timeout}")
+                        if(timeout > 9): 
+                            logging.warning(f"User {addr} has disconnected")
                             break
-            else: 
-                self.last_state = meta.group(0)
-                logging.debug(f"Last state set to {self.last_state}")
-    
-    def set_state(self, state:str):
-        self.last_state = state.replace(' ','')
+                    elif(decoded_data != ''):
+                        timeout = 0
+                        logging.info(f"Recived data '{decoded_data}' from address {addr}")
+                
+                        self.symbol_parse(decoded_data)
+
+                        decoded_data = sub('|'.join(self.conn_symbols.values()),'',decoded_data)
+
+                        self.serv.parse_data(decoded_data, addr)
+                        break
+                
+            logging.debug(f"Conn_steps: {self.conn_step}")
+
+    def symbol_parse(self, command:str):
+        urgent = False
+        num = 0
+        for symbol in finditer('|'.join(self.conn_symbols.values()), command):
+            if(symbol.group(0) == self.conn_symbols["Urgency"]):
+                urgent = True
+            else:
+                if(urgent):
+                    self.conn_step.insert(num, symbol.group(0))
+                    urgent = False
+                    num += 1
+                else:
+                    self.conn_step.append(symbol.group(0))
         
     # Ausiàs cabro pegali a ton pare
 
@@ -106,7 +123,7 @@ class Beer_programming():
         players = list(self.players.items())
         if(last >= len(players) or last < 0): return
         for player in players[last:-1]:
-            self.serv.sendto(f"--add_player;{player};;", addr)
+            self.serv.sendto(f"--add_player;{player}{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}", addr)
         self.serv.sendto(f"--add_player;{players[-1]}", addr)
         
     def add_chat(self, addr:tuple, text:str):
@@ -115,7 +132,7 @@ class Beer_programming():
     def send_chat(self, addr:tuple, last:int=0):
         if(last >= len(self.chat) or last < 0): return
         for mssg in self.chat[last:-1]:
-            self.serv.sendto(f"--add_chat;{mssg};;",addr)
+            self.serv.sendto(f"--add_chat;{mssg}{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}",addr)
         self.serv.sendto(f"--add_chat;{self.chat[-1]}",addr)
         
     def drink(self, addr:tuple, drinks:int=1):
