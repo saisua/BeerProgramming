@@ -1,10 +1,9 @@
 import Server
 import logging
-import multiprocessing_logging
 from multiprocessing import Process, Manager
 from re import finditer, sub
 
-from time import sleep
+import time, datetime
 
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
@@ -31,7 +30,8 @@ def arg_parse(args:list, arg_dict:dict=
     
 class Beer_programming():
     def __init__(self, ip:str=None, port:int=12412, player_num:int=1, 
-                        compile_time:int=240):
+                        compile_time:int=240, 
+                        drinks_per_error:"(float,function)"=(1,lambda x: x)):
         self.serv = Server.Server(ip, int(port), order_dict=
                                 {"--add_player":self.add_player,
                                 "--send_players":self.send_players,
@@ -42,8 +42,12 @@ class Beer_programming():
         self.players = Manager().dict()
         self.players_drinks = Manager().dict()
         self.players_last_drink = Manager().dict()
-
+        
         self.compile_time = compile_time
+        self.compile_at = None
+        self.drinks_per_error = drinks_per_error
+
+        self.end = Manager().list([False])
 
         self.conn_step = [";;"]
         self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
@@ -54,8 +58,8 @@ class Beer_programming():
         self.chat = Manager().list()
         self.serv.listen_connections(int(player_num))
         
-    def play(self, addr:tuple):
-        logging.debug(f"play({addr})")
+    def __play(self, addr:tuple):
+        logging.debug(f"__play({addr})")
 
         while(len(self.conn_step)):
 
@@ -71,28 +75,17 @@ class Beer_programming():
                 self.serv.sendto(decoded_data,addr)
                 
             elif(step == self.conn_symbols["Client_to_Serv"] or step == self.conn_symbols["Serv_listen"]):
-                timeout = 0
-                while(True):
-                    data = self.serv._client_from_addr[addr].recv(1024)
-                    decoded_data = data.decode("utf-8")
-                    if(data is None):
-                        timeout += 1
-                        logging.debug(f"Timeout of user {addr} increased to {timeout}")
-                        if(timeout > 9): 
-                            logging.warning(f"User {addr} has disconnected")
-                            break
-                    elif(decoded_data != ''):
-                        timeout = 0
-                        logging.info(f"Recived data '{decoded_data}' from address {addr}")
-                
-                        self.symbol_parse(decoded_data)
-
-                        decoded_data = sub('|'.join(self.conn_symbols.values()),'',decoded_data)
-
-                        self.serv.parse_data(decoded_data, addr)
-                        break
-                
+                self.listen(addr)
             logging.debug(f"Conn_steps: {self.conn_step}")
+
+    def play(self, addr:tuple):
+        logging.debug(f"play({addr})")
+
+        self.serv.sendto("--_start!!<-")
+
+        while(not self.end[0]):
+            if(self.conn_step[0] == ";;" or self.conn_step[0] == "<_"): self.conn_step.pop(0)
+            self.sleep(compile_after=True)
 
     def symbol_parse(self, command:str):
         urgent = False
@@ -108,6 +101,38 @@ class Beer_programming():
                 else:
                     self.conn_step.append(symbol.group(0))
         
+    def listen(self, addr:tuple, max_timeout:float=None):
+        if(addr is None): return
+        
+        timeout = 0
+
+        if(max_timeout is None):
+            max_timeout = datetime.datetime.now() + datetime.timedelta(days=99999999)
+        else:
+            max_timeout = datetime.datetime.now() + datetime.timedelta(seconds=int(max_timeout), 
+                            milliseconds=int(max_timeout*1000%1000))
+
+        while(datetime.datetime.now() < max_timeout):
+            data = self.serv._client_from_addr[addr].recv(1024)
+            decoded_data = data.decode("utf-8")
+            if(data is None):
+                timeout += 1
+                logging.debug(f"Timeout of user {addr} increased to {timeout}")
+                if(timeout > 9): 
+                    logging.warning(f"User {addr} has disconnected")
+                    break
+            elif(decoded_data != ''):
+                timeout = 0
+                logging.info(f"Recived data '{decoded_data}' from address {addr}")
+        
+                self.symbol_parse(decoded_data)
+
+                decoded_data = sub('|'.join(self.conn_symbols.values()),'',decoded_data)
+
+                self.serv.parse_data(decoded_data, addr)
+                break
+        
+
     # Ausiàs cabro pegali a ton pare
 
     # Game related functions
@@ -143,8 +168,18 @@ class Beer_programming():
         #Later it can be modified by a lambda
         self.serv.sendto(f"--drink;{drinks}",addr)
 
-    def sleep(self):
-        pass #self.
+    def sleep(self, sleep_time:float=None, compile_after:bool=False, **kwargs):
+        if(sleep_time is None): 
+            if(self.compile_at is None):
+                self.compile_at = datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)
+            
+            sleep_time = self.compile_at - datetime.datetime.now()
+
+        time.sleep(sleep_time)
+        if(compile_after):
+            self.listen(kwargs.get("addr",None), max_timeout=5)
+            self.serv.sendall(f"--compile{self.conn_symbols['Urgency']}{self.conn_symbols['Server_listen']}")
+
 
 if __name__ == "__main__":
     main()

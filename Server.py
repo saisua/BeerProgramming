@@ -81,6 +81,9 @@ class Server():
     
     def sendto(self, message:str, addr:tuple):
         self._client_from_addr[addr].sendto(bytes(str(message), "utf-8"), addr)
+
+    def sendall(self, message:str):
+        self._connection.sendall(bytes(str(message), "utf-8"))
     
     def listen(self, addr, listener):
         logging.debug("Client.listen(self)")
