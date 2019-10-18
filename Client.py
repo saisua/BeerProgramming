@@ -1,6 +1,9 @@
 import socket
 import logging
 import time
+try:
+    import Server
+except ImportError: pass
 
 def main():
     return
@@ -16,6 +19,12 @@ class Client():
         logging.info("Created new client")
         self.listener = None
         self.server = None
+
+        try:
+            Server.Process(target=lambda x: x, args=(1))
+            self.__can_be_server = True 
+        except Exception:
+            self.__can_be_server = False
 
     def connect(self, ip:str, port:int=12412, password:str=None):
         logging.debug(f"Client.connect(self, {ip}, {port}, {password})")

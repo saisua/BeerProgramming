@@ -6,12 +6,10 @@ def main():
     
 class Server():
     def __init__(self, ip:str=None, port:int=12412, password:str=None, max_connections:int=-1,
-                        order_dict:dict={}):
-        self.threaded = [False, False]
-        
+                        order_dict:dict={}, listen_timeout:float=30, threaded:bool=True):
         logging.debug(f"Server.__init__(self, {ip}, {port}, {password}, {max_connections})")
-        #self._clients_process = []
-        #self._clients_p_obj = []
+        self.threaded = threaded
+        
         self.__manager = Manager()
         self._client_from_addr = self.__manager.dict()
         self._process_from_addr = {}
@@ -36,6 +34,8 @@ class Server():
         self._connection = socket.socket(socket.AF_INET, 
                             socket.SOCK_STREAM)
         self._connection.bind((ip, port))
+
+        self.listen_timeout = listen_timeout
         logging.info("Created new server")
 
     def listen_connections(self, connections:int=1, ip:str=None, port:int=None):
@@ -45,7 +45,7 @@ class Server():
         if(port is None): port = self.port
         else: self.port = int(port)
             
-        if(self.threaded[0]):
+        if(self.threaded):
             process = [] #miau
             for _ in range(connections):
                 process.append(Process(target=self.new_connection, args=(ip, port)))
@@ -74,7 +74,7 @@ class Server():
         self._client_from_addr[addr] = listener
         self.open[addr] = True
 
-        if(self.threaded[1]):
+        if(self.threaded):
             self._process_from_addr[addr] = Process(target=self.listen, args=(addr, listener))#, daemon=True)
             self._process_from_addr[addr].start()
         else: self.listen(addr,listener)

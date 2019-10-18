@@ -18,7 +18,8 @@ def main():
 
 def arg_parse(args:list, arg_dict:dict=
         {"--ip":"ip","--port":"port",
-         "-i":"ip","-p":"port"}) -> dict:
+         "-i":"ip","-p":"port",
+         "-n":"gui","--no_gui":"gui"}) -> dict:
     final = {}
     before = False
     for arg in args[1:]:
@@ -33,7 +34,7 @@ def arg_parse(args:list, arg_dict:dict=
     return final
 
 class Beer_programming():
-    def __init__(self, ip:str=None, port:int=12412):
+    def __init__(self, ip:str=None, port:int=12412, gui:bool=True):
         logging.debug(f"BeerProgramming.__init__(self,{ip},{port})")
         self.client = Client.Client()
         self.listener = None
@@ -50,11 +51,14 @@ class Beer_programming():
         self.chat = []
         self.drinks = 0
 
-        self.conn_step = [";;"]
+        self.gui = bool(gui)
+
         self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
                                 "Serv_listen":"->", "Serv_send":"<_",
                                 "Client_listen":"<-", "Client_send":"<_",
                                 "Urgency":"!!", "Evaluate":"#"}
+
+        self.conn_step = [self.conn_symbols['Serv_to_Client']]
 
         if(not ip is None): self.connect(ip,port)
         else: self.connect("127.0.0.1", port)
@@ -119,32 +123,19 @@ class Beer_programming():
 
         return(next(listener))
         
-    def gui(self):
-        logging.debug("BeerProgramming.gui(self)")
-        app = App()
-        
-        frame = front.Frame(name="Beer Programming")
-        panel = frame.new_panel(bgcolor=(50,50,50))
-        
-        player_panel =  panel.new_panel("(%0.49,%1)")
-        chat_panel = panel.new_panel("(%0.49,%1)","(%0.51,0)")
-        
-        self.text_list = {self.name:panel.add_text((0,0),"(%1,%0.2)", self.name)}
-        
-        app.MainLoop()
-        
     def start_compiler(self) -> None:
-        logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
-        self.driver = webdriver.Firefox(executable_path=(
-                __file__).replace("play.py", "geckodriver"))
-                #options=options, firefox_profile=profile,# capabilities=firefox_capabilities, 
-                #firefox_binary=FirefoxBinary((__file__).replace("play.py", "geckodriver")))
-        logging.info("Drivers ran succesfully!")
-        
-        self.driver.get("https://www.onlinegdb.com/online_java_compiler")
-        self.tab = self.driver.current_window_handle
-        
-        self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-menu-left']").click()
+        if(self.gui):
+            logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
+            self.driver = webdriver.Firefox(executable_path=(
+                    __file__).replace("play.py", "geckodriver"))
+                    #options=options, firefox_profile=profile,# capabilities=firefox_capabilities, 
+                    #firefox_binary=FirefoxBinary((__file__).replace("play.py", "geckodriver")))
+            logging.info("Drivers ran succesfully!")
+            
+            self.driver.get("https://www.onlinegdb.com/online_java_compiler")
+            self.tab = self.driver.current_window_handle
+            
+            self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-menu-left']").click()
 
         self.client.send_to_server("Done")
 
@@ -195,22 +186,23 @@ class Beer_programming():
     # Game related functions
 
     def compile(self) -> int:
-        self.driver.switch_to.window(self.tab)
+        if(self.gui):
+            self.driver.switch_to.window(self.tab)
 
-        try: self.driver.switch_to.alert.dismiss()
-        except NoAlertPresentException: pass
+            try: self.driver.switch_to.alert.dismiss()
+            except NoAlertPresentException: pass
 
-        self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
-        
-        time.sleep(3)
-        
-        self.driver.switch_to.window(self.tab)
-        
-        try:
-            self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}"
-                                        f"{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
-        except:
-            self.client.send_to_server(f"--drink;0{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
+            self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
+            
+            time.sleep(3)
+            
+            self.driver.switch_to.window(self.tab)
+            
+            try:
+                self.client.send_to_server(f"--drink;{len(self.driver.find_elements_by_xpath('''//*[@class='error_line']'''))}"
+                                            f"{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
+            except:
+                self.client.send_to_server(f"--drink;0{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
 
     def drink(self, drinks:str='0'):
         logging.info(f"Recieved order to drink {drinks} times")

@@ -59,11 +59,12 @@ class Beer_programming():
 
         self.end = Manager().list([False])
 
-        self.conn_step = [";;"]
         self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
                                 "Serv_listen":"->", "Serv_send":"<_",
                                 "Client_listen":"<-", "Client_send":"<_",
                                 "Urgency":"!!", "Evaluate":"#"}
+
+        self.conn_step = [self.conn_symbols['Serv_to_Client']]
 
         self.chat = Manager().list()
 
@@ -94,12 +95,17 @@ class Beer_programming():
     def play(self, addr:tuple):
         logging.debug(f"play({addr})")
 
-        self.serv.sendto("--_start!!<-", addr)
+        self.serv.sendto(f"--_start{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}", addr)
 
         self.listen(addr)
 
         while(not self.end[0]):
-            if(self.conn_step[0] == ";;" or self.conn_step[0] == "<_"): self.conn_step.pop(0)
+            if(self.conn_step[0] == self.conn_symbols["Serv_to_Client"] or 
+                    self.conn_step[0] == self.conn_symbols["Serv_send"]): self.conn_step.pop(0)
+            self.serv.sendto(f"{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}"
+                            f"{self.conn_symbols['Client_listen']}",addr)
+            self.send_players()
+            
             self.sleep(compile_after=True, addr=addr)
 
     def symbol_parse(self, command:str):
