@@ -1,6 +1,6 @@
-import Server, front
+import Server #, front
 import logging
-from wx import App
+#from wx import App
 from multiprocessing import Process, Manager
 from re import finditer, sub
 
@@ -9,13 +9,17 @@ import time, datetime
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
-    Beer_programming(compile_time=10,gui=False,**arg_parse(argv)).play()
+    Beer_programming(gui=False,**arg_parse(argv)).play()
 
 def arg_parse(args:list, arg_dict:dict=
         {"--ip":"ip","--port":"port",   
          "-i":"ip","-p":"port",
          "-pl":"player_num",
-         "--players":"player_num"}) -> dict:
+         "--players":"player_num",
+         "-t":"compile_time",
+         "--time":"compile_time",
+         "-dpe":"drinks_per_error",
+         "--drinks_per_error":"drinks_per_error"}) -> dict:
     final = {}
     before = False
     for arg in args[1:]:
@@ -44,8 +48,13 @@ class Beer_programming():
         self.players_drinks = Manager().dict()
         self.players_last_drink = Manager().dict()
         
-        self.compile_time = compile_time
+        self.compile_time = float(compile_time)
         self.compile_at = Manager().list()
+
+        if(type(drinks_per_error) is str): drinks_per_error = eval(drinks_per_error)
+        if(not hasattr(drinks_per_error, '__iter__')):
+            drinks_per_error = (float(drinks_per_error), lambda x:x)
+
         self.drinks_per_error = drinks_per_error
 
         self.end = Manager().list([False])
@@ -192,6 +201,7 @@ class Beer_programming():
 
     def gui(self):
         logging.debug("BeerProgramming.gui(self)")
+        """
         app = App()
         
         frame = front.Frame(name="Beer Programming")
@@ -203,7 +213,7 @@ class Beer_programming():
         self.text_list = {self.name:panel.add_text((0,0),"(%1,%0.2)", self.name)}
         
         app.MainLoop()
-
+        """
 
 if __name__ == "__main__":
     main()
