@@ -2,18 +2,16 @@ import Client , front
 from wx import App
 from multiprocessing import Process
 import logging
-import multiprocessing_logging
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoAlertPresentException
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium import webdriver
 from re import finditer, sub
 import time
 
 def main():
-    multiprocessing_logging.install_mp_handler()
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
     Beer_programming(**arg_parse(argv)).play(False)
@@ -136,23 +134,19 @@ class Beer_programming():
         app.MainLoop()
         
     def start_compiler(self) -> None:
-        firefox_capabilities = DesiredCapabilities.FIREFOX
-        firefox_capabilities['marionette'] = True
-
-        options = webdriver.firefox.options.Options()
-        
-        profile = webdriver.FirefoxProfile()
-        
         logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
         self.driver = webdriver.Firefox(executable_path=(
-                __file__).replace("play.py", "geckodriver"),
-                options=options, firefox_profile=profile) #firefox_binary=binary,
+                __file__).replace("play.py", "geckodriver"))
+                #options=options, firefox_profile=profile,# capabilities=firefox_capabilities, 
+                #firefox_binary=FirefoxBinary((__file__).replace("play.py", "geckodriver")))
         logging.info("Drivers ran succesfully!")
         
         self.driver.get("https://www.onlinegdb.com/online_java_compiler")
         self.tab = self.driver.current_window_handle
         
         self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-menu-left']").click()
+
+        self.client.send_to_server("Done")
 
     def data_parse(self, data:str):
         #print(f"data_parse {data}")
@@ -202,7 +196,10 @@ class Beer_programming():
 
     def compile(self) -> int:
         self.driver.switch_to.window(self.tab)
-        
+
+        try: self.driver.switch_to.alert.dismiss()
+        except NoAlertPresentException: pass
+
         self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
         
         time.sleep(3)

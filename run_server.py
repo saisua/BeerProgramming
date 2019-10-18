@@ -1,5 +1,6 @@
-import Server
+import Server, front
 import logging
+from wx import App
 from multiprocessing import Process, Manager
 from re import finditer, sub
 
@@ -8,10 +9,10 @@ import time, datetime
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
-    Beer_programming(**arg_parse(argv)).play()
+    Beer_programming(compile_time=10,gui=False,**arg_parse(argv)).play()
 
 def arg_parse(args:list, arg_dict:dict=
-        {"--ip":"ip","--port":"port",
+        {"--ip":"ip","--port":"port",   
          "-i":"ip","-p":"port",
          "-pl":"player_num",
          "--players":"player_num"}) -> dict:
@@ -30,7 +31,7 @@ def arg_parse(args:list, arg_dict:dict=
     
 class Beer_programming():
     def __init__(self, ip:str=None, port:int=12412, player_num:int=1, 
-                        compile_time:int=240, 
+                        compile_time:int=240, gui:bool=True,
                         drinks_per_error:"(float,function)"=(1,lambda x: x)):
         self.serv = Server.Server(ip, int(port), order_dict=
                                 {"--add_player":self.add_player,
@@ -44,7 +45,7 @@ class Beer_programming():
         self.players_last_drink = Manager().dict()
         
         self.compile_time = compile_time
-        self.compile_at = None
+        self.compile_at = Manager().list()
         self.drinks_per_error = drinks_per_error
 
         self.end = Manager().list([False])
@@ -56,11 +57,14 @@ class Beer_programming():
                                 "Urgency":"!!", "Evaluate":"#"}
 
         self.chat = Manager().list()
+
+        if(gui): self.gui()
+
         self.serv.listen_connections(int(player_num))
         
     def __play(self, addr:tuple):
         logging.debug(f"__play({addr})")
-
+    
         while(len(self.conn_step)):
 
             step = self.conn_step[0]
@@ -81,11 +85,13 @@ class Beer_programming():
     def play(self, addr:tuple):
         logging.debug(f"play({addr})")
 
-        self.serv.sendto("--_start!!<-")
+        self.serv.sendto("--_start!!<-", addr)
+
+        self.listen(addr)
 
         while(not self.end[0]):
             if(self.conn_step[0] == ";;" or self.conn_step[0] == "<_"): self.conn_step.pop(0)
-            self.sleep(compile_after=True)
+            self.sleep(compile_after=True, addr=addr)
 
     def symbol_parse(self, command:str):
         urgent = False
@@ -107,7 +113,7 @@ class Beer_programming():
         timeout = 0
 
         if(max_timeout is None):
-            max_timeout = datetime.datetime.now() + datetime.timedelta(days=99999999)
+            max_timeout = datetime.datetime.now() + datetime.timedelta(days=30)
         else:
             max_timeout = datetime.datetime.now() + datetime.timedelta(seconds=int(max_timeout), 
                             milliseconds=int(max_timeout*1000%1000))
@@ -168,17 +174,35 @@ class Beer_programming():
         #Later it can be modified by a lambda
         self.serv.sendto(f"--drink;{drinks}",addr)
 
-    def sleep(self, sleep_time:float=None, compile_after:bool=False, **kwargs):
+    def sleep(self, sleep_time:float=None, compile_after:bool=False, addr:tuple=None):
         if(sleep_time is None): 
-            if(self.compile_at is None):
-                self.compile_at = datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)
+            if(not len(self.compile_at)):
+                self.compile_at.append(datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)) 
+            elif(self.compile_at[0] < datetime.datetime.now()):
+                self.compile_at[0] = datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)
             
-            sleep_time = self.compile_at - datetime.datetime.now()
+            sleep_time = (self.compile_at[0] - datetime.datetime.now()).seconds
+
+        logging.info(f"Sleeping for {sleep_time} seconds.")
 
         time.sleep(sleep_time)
         if(compile_after):
-            self.listen(kwargs.get("addr",None), max_timeout=5)
-            self.serv.sendall(f"--compile{self.conn_symbols['Urgency']}{self.conn_symbols['Server_listen']}")
+            self.serv.sendto(f"--compile{self.conn_symbols['Client_listen']}{self.conn_symbols['Client_listen']}", addr)
+            self.listen(addr, max_timeout=5)
+
+    def gui(self):
+        logging.debug("BeerProgramming.gui(self)")
+        app = App()
+        
+        frame = front.Frame(name="Beer Programming")
+        panel = frame.new_panel(bgcolor=(50,50,50))
+        
+        player_panel =  panel.new_panel("(%0.49,%1)")
+        chat_panel = panel.new_panel("(%0.49,%1)","(%0.51,0)")
+        
+        self.text_list = {self.name:panel.add_text((0,0),"(%1,%0.2)", self.name)}
+        
+        app.MainLoop()
 
 
 if __name__ == "__main__":
