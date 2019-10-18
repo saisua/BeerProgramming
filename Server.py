@@ -17,6 +17,8 @@ class Server():
         
         self.order_dict = order_dict
 
+        self.clients_new_server = self.__manager.dict()
+
         if(ip is None): 
             ip = socket.gethostbyname_ex(socket.gethostname())[-1]
             if(type(ip) is list or type(ip) is tuple): ip = ip[-1]

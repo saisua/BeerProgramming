@@ -1,5 +1,4 @@
-import Client , front
-from wx import App
+import Client
 from multiprocessing import Process
 import logging
 from selenium.webdriver.support.ui import WebDriverWait
@@ -51,7 +50,12 @@ class Beer_programming():
         self.chat = []
         self.drinks = 0
 
-        self.gui = bool(gui)
+        try:
+            import front
+            from wx import App
+            self.gui = bool(gui)
+        except ImportError:
+            self.gui = False
 
         self.conn_symbols = {"Serv_to_Client":";;", "Client_to_Serv":"::",
                                 "Serv_listen":"->", "Serv_send":"<_",
