@@ -2,6 +2,9 @@ import socket
 import logging
 import time
 
+# This function gets executed when you run
+# python Client.py and its use is to test the code
+# so it will usually be empty
 def main():
     return
     import sys
@@ -10,6 +13,12 @@ def main():
     cl = Client()
     cl.connect(sys.argv[1], 12412)
 
+"""
+    The Client class is the main socket client class.
+    It is programmed to connect to an instance of
+    Server.Server. It mostly listens and sends data
+    from and to the server
+"""
 class Client():
     def __init__(self):
         logging.debug(f"Client.__init__(self)")
@@ -17,6 +26,9 @@ class Client():
         self.listener = None
         self.server = None
 
+    # connect will connect to the server in ip:port .
+    # if given a password, the client will try to send it to
+    # the server (not working)
     def connect(self, ip:str, port:int=12412, password:str=None):
         logging.debug(f"Client.connect(self, {ip}, {port}, {password})")
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,6 +45,11 @@ class Client():
 
         return self.listener
 
+    # listen takes one connected instance of socket.socket
+    # and returns one generator. Each time that the
+    # generator executes its .next() , tbe function will
+    # be resumed, and it will return any data collected
+    # from the server
     def listen(self, server:socket.socket) -> "generator":
         timeout = 0
         
@@ -50,6 +67,8 @@ class Client():
                 del data
                 yield decoded_data
 
+    # send_to_server turns {data} into utf-8 formatted
+    # bytes and sends them to the server
     def send_to_server(self, data:str):
         if(not self.server is None):
             self.server.sendall(bytes(data, "utf-8"))

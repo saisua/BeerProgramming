@@ -1,13 +1,29 @@
 from multiprocessing import Process, Manager
 import socket, logging
+import typing
 
+# This function gets executed when you run
+# python Server.py and its use is to test the code
+# so it will usually be empty
 def main():
     logging.error("Run run_server instead")
+
     
+"""
+    The Server class is the main builder for the Sockets
+    over TCP. It will by default allow an unlimited number
+    of clients, but it will accept only 1.
+    When told so, it can accept multiple clients at once.
+    When one client gets connected, the Server assigns
+    one process to that client, and that process divides
+    into two, one that operates from the point of view of the
+    server, and a second one, as a daemon, who listens and
+    runs the functions given in order_dict
+"""
 class Server():
     def __init__(self, ip:str=None, port:int=12412, password:str=None, max_connections:int=-1,
                         order_dict:dict={}):
-        self.threaded = [False, False]
+        self.threaded = [True, True]
         
         logging.debug(f"Server.__init__(self, {ip}, {port}, {password}, {max_connections})")
         #self._clients_process = []
@@ -38,7 +54,10 @@ class Server():
         self._connection.bind((ip, port))
         logging.info("Created new server")
 
-    def listen_connections(self, connections:int=1, ip:str=None, port:int=None):
+    # listen_connections sets up {connections} connections,
+    # that when connected by a client, will assign one new
+    # thread to that client
+    def listen_connections(self, connections:int=1, ip:str=None, port:int=None) -> None:
         logging.debug(f"Server.listen_connections(self, {connections}, {ip}, {port})")
         
         if(ip is None): ip = self.ip
@@ -57,8 +76,11 @@ class Server():
             for conn in process: conn.join()
         else: self.new_connection(ip, port)
     
-    
-    def new_connection(self, ip:str=None, port:int=None):
+    # new_connection is run by a client-assigned thread,
+    # and it does wait for the client to send an order
+    # that when parsed, will coincide with one of tge keys
+    # of ord_dict, and so its value will be executed
+    def new_connection(self, ip:str=None, port:int=None) -> None:
         logging.debug(f"Server.new_connection(self, {ip}, {port})")
         if(self.max_connections + 1 and len(self._client_from_addr) >= self.max_connections): return
     
@@ -79,13 +101,24 @@ class Server():
             self._process_from_addr[addr].start()
         else: self.listen(addr,listener)
     
-    def sendto(self, message:str, addr:tuple):
+    # sendto (kind of) overloads socket.socket.sendto .
+    # Given a message and an address, the server will
+    # turn message into utf-8 formatted bytes, and it
+    # will send it (if possible) to the client with the
+    # given address
+    def sendto(self, message:str, addr:tuple) -> iterable:
         self._client_from_addr[addr].sendto(bytes(str(message), "utf-8"), addr)
 
+    # sendall (kind of) overloads socket.socket.sendall .
+    # Even if it is not tested, it theorically turns message
+    # into utf-8 formatted bytes and sends it to all clients
+    # in the socket server.
     def sendall(self, message:str):
         self._connection.sendall(bytes(str(message), "utf-8"))
     
-    def listen(self, addr, listener):
+    # listen will make use of listener to (if given one)
+    # ask for a password, and then it will return a generator
+    def listen(self, addr:tuple, listener:"socket.socket") -> typing.Generator[str]:
         logging.debug("Client.listen(self)")
         if(not self.open[addr]): return
         
@@ -137,7 +170,12 @@ class Server():
         del self.open[addr]
                     
                         
-    def parse_data(self, data:str, addr:str):
+    # parse_data takes one string recieved from one client
+    # and its address and executes (if found) any matches
+    # separated by ';' in the string as keys in ord_dict
+    # the functions in the values of the dict must take 
+    # addr as the first parameter even if unnecessary
+    def parse_data(self, data:str, addr:str) -> None:
         #print(f"parse_data {data}")
         order = None
         args = (addr,)
