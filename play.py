@@ -11,11 +11,20 @@ from selenium import webdriver
 from re import finditer, sub
 import time
 
+# This function gets executed when you run
+# python play.py and it serves as a way to run
+# the Beer_programming client and parse the user's
+# arguments
 def main():
     logging.basicConfig(format="%(asctime)s %(levelname)s | %(message)s", level=logging.DEBUG)
     from sys import argv
     Beer_programming(**arg_parse(argv)).play(False)
 
+# arg_parse does take a list of arguments and returns
+# one dict with the parameters and values (str) determined
+# by the keys and values of arg_dict
+# if one key is found, the following argument is
+# chosen as a value
 def arg_parse(args:list, arg_dict:dict=
         {"--ip":"ip","--port":"port",
          "-i":"ip","-p":"port"}) -> dict:
@@ -32,6 +41,14 @@ def arg_parse(args:list, arg_dict:dict=
             before = value
     return final
 
+"""
+    The class Beer_programming is the main class used to
+    play the game. It will create a Client, who will then
+    connect to the server, which will rule the game.
+    Between its features there is the possibility to
+    run and compile the chosen online compiler, and to
+    chat (unused)
+"""
 class Beer_programming():
     def __init__(self, ip:str=None, port:int=12412):
         logging.debug(f"BeerProgramming.__init__(self,{ip},{port})")
@@ -59,6 +76,14 @@ class Beer_programming():
         if(not ip is None): self.connect(ip,port)
         else: self.connect("127.0.0.1", port)
 
+    # The play function should be the first function to be
+    # executed when the server starts to listen to the socket.
+    # When executed, play will send the server the order to
+    # add itself as a named user, will ask the server
+    # what are the names of the other players and then it
+    # will give the server the control.
+    # play can open a gui(unused) and will then run
+    # _play_process
     def play(self, gui:bool=True) -> None:
         logging.debug(f"BeerProgramming.play(self, {gui})")
         name = False
@@ -81,6 +106,12 @@ class Beer_programming():
             play_pro.join()
         else: self._play_process()
             
+    # _play_process is the main function to interactuate
+    # with the server. Based on the actual state of the
+    # Beer_programming.conn_steps queue it will either
+    # listen or ask what to send to the server.
+    # It's the server's job to determine if it should or
+    # shoul not need the user's input
     def _play_process(self) -> None:
         while(len(self.conn_step)):
             
@@ -107,11 +138,16 @@ class Beer_programming():
                     
             logging.debug(f"Conn_steps: {self.conn_step}")
 
+    # connect (kind of) overrides Client.connect. Even if
+    # unnecessary, I think this function makes the code
+    # cleaner
     def connect(self, ip:str, port:int=12412) -> None:
         logging.debug(f"BeerProgramming.connect(self, {ip}, {port})")
         self.listener = self.client.connect(ip,port)
 
-    def listen(self, listener:"generator"=None)-> str:
+    # listen does make use of the Client's generator to
+    # listen to the server and return a string
+    def listen(self, listener:"generator"=None) -> str:
         #logging.debug(f"BeerProgramming.listen(self, {listener})")
         if(listener is None):
             if(self.listener is None): return
@@ -119,7 +155,9 @@ class Beer_programming():
 
         return(next(listener))
         
-    def gui(self):
+    # (unused) gui does open a gui for the user to see
+    # all clients connected and chat with them
+    def gui(self) -> None:
         logging.debug("BeerProgramming.gui(self)")
         app = App()
         
@@ -133,6 +171,9 @@ class Beer_programming():
         
         app.MainLoop()
         
+    # start_compiler does start a new selenium instance (gecko)
+    # controlled by the game to make sure nobody can cheat
+    # with (at least) one saved file
     def start_compiler(self) -> None:
         logging.info("Configuration complete. Trying to run the drivers. This could take some time...")
         self.driver = webdriver.Firefox(executable_path=(
@@ -148,7 +189,10 @@ class Beer_programming():
 
         self.client.send_to_server("Done")
 
-    def data_parse(self, data:str):
+    # data_parse takes any message sent by the server
+    # and it executes the function assigned as key
+    # in the self.order_dict dictionary
+    def data_parse(self, data:str) -> None:
         #print(f"data_parse {data}")
         order = None
         args = ()
@@ -177,6 +221,9 @@ class Beer_programming():
                 raise err
                 print(f"ERROR: {err}.")
 
+    # symbol_parse is used by the user and the server
+    # to tell (into a queue) what the Client should do
+    # next (listen/send something)
     def symbol_parse(self, command:str):
         urgent = False
         num = 0 
@@ -191,9 +238,14 @@ class Beer_programming():
                 else:
                     self.conn_step.append(symbol.group(0))
         
-
+    #
     # Game related functions
+    #
 
+    # compile will make use of the selenium instance to
+    # try to compile the code. Any error in the code will
+    # be sent to the server, who will answer how
+    # many times will have the user to drink
     def compile(self) -> int:
         self.driver.switch_to.window(self.tab)
 
@@ -224,18 +276,27 @@ class Beer_programming():
         try: self.driver.find_elements_by_xpath('''//*[@class='glyphicon glyphicon-stop']''').click()
         except: pass
 
+    # drink will be executed by the server when the code is
+    # compiled. It will then tell the user how many times
+    # it should drink
     def drink(self, drinks:str='0'):
         logging.info(f"Recieved order to drink {drinks} times")
         self.driver.execute_script(f"alert('Drink {drinks} times');", [])        
         
+    # add_player will record a new player, when given by the
+    # server. It is meant to have the utility of listing
+    # all users avaliable to chat with
     def add_player(self, player:"str(addr, name)"):
         addr, name = eval(player)
         logging.info(f"Added new player {name} ({addr})")
         self.players[addr] = name
 
+    # add_chat adds a new message to the chat list
     def add_chat(self, text:str):
         self.chat.append(eval(text))
 
+    # __print_gui is a debugging function that prints all
+    # server-recieved variables
     def __print_gui(self):
         print()
         print(f"Chat: {self.chat}")
