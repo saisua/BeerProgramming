@@ -253,7 +253,7 @@ class Beer_programming():
 
         time.sleep(sleep_time)
         if(compile_after):
-            self.serv.sendto(f"--compile{self.conn_symbols['Client_listen']}{self.conn_symbols['Client_listen']}", addr)
+            self.serv.sendto(f"--compile{self.conn_symbols['Client_listen']}", addr)
             self.listen(addr, max_timeout=5)
 
     # gui is used for displaying the connected users if

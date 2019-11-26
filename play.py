@@ -111,7 +111,7 @@ class Beer_programming():
     # Beer_programming.conn_steps queue it will either
     # listen or ask what to send to the server.
     # It's the server's job to determine if it should or
-    # shoul not need the user's input
+    # should not need the user's input
     def _play_process(self) -> None:
         while(len(self.conn_step)):
             
@@ -256,6 +256,8 @@ class Beer_programming():
             try: 
                 self.driver.switch_to.window(self.tab)
 
+                self.driver.find_elements_by_xpath('''//*[@class='glyphicon glyphicon-stop']''').click()
+
                 self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
                 
                 break
@@ -272,9 +274,6 @@ class Beer_programming():
             self.client.send_to_server(f"--drink;0{self.conn_symbols['Urgency']}{self.conn_symbols['Client_listen']}")
 
         self.driver.switch_to.window(self.tab)
-
-        try: self.driver.find_elements_by_xpath('''//*[@class='glyphicon glyphicon-stop']''').click()
-        except: pass
 
     # drink will be executed by the server when the code is
     # compiled. It will then tell the user how many times

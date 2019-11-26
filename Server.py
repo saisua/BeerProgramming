@@ -23,7 +23,7 @@ def main():
 class Server():
     def __init__(self, ip:str=None, port:int=12412, password:str=None, max_connections:int=-1,
                         order_dict:dict={}):
-        self.threaded = [True, True]
+        self.threaded = [False, False]
         
         logging.debug(f"Server.__init__(self, {ip}, {port}, {password}, {max_connections})")
         #self._clients_process = []
@@ -106,7 +106,7 @@ class Server():
     # turn message into utf-8 formatted bytes, and it
     # will send it (if possible) to the client with the
     # given address
-    def sendto(self, message:str, addr:tuple) -> iterable:
+    def sendto(self, message:str, addr:tuple) -> "iterable":
         self._client_from_addr[addr].sendto(bytes(str(message), "utf-8"), addr)
 
     # sendall (kind of) overloads socket.socket.sendall .
@@ -118,7 +118,7 @@ class Server():
     
     # listen will make use of listener to (if given one)
     # ask for a password, and then it will return a generator
-    def listen(self, addr:tuple, listener:"socket.socket") -> typing.Generator[str]:
+    def listen(self, addr:tuple, listener:"socket.socket") -> "generator[str]":
         logging.debug("Client.listen(self)")
         if(not self.open[addr]): return
         
