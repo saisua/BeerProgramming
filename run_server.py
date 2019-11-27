@@ -1,3 +1,5 @@
+#!./python3.7/python
+
 import Server #, front
 import logging
 #from wx import App

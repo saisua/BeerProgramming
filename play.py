@@ -1,3 +1,5 @@
+#!./python3.7/python
+
 import Client , front
 from wx import App
 from multiprocessing import Process
@@ -36,9 +38,12 @@ def arg_parse(args:list, arg_dict:dict=
             final[before] = arg
             before = False
             continue
+        
         value = arg_dict.get(arg, None)
         if(not value is None):
             before = value
+    
+
     return final
 
 """
