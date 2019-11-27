@@ -258,11 +258,13 @@ class Beer_programming():
         except NoAlertPresentException: pass
 
         while(True):
-            try: 
+            try:
                 self.driver.switch_to.window(self.tab)
 
                 self.driver.find_elements_by_xpath('''//*[@class='glyphicon glyphicon-stop']''').click()
+           except: pass
 
+           try:
                 self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
                 
                 break

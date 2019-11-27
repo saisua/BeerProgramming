@@ -5,6 +5,7 @@ import logging
 #from wx import App
 from multiprocessing import Process, Manager
 from re import finditer, sub
+from random import randint
 
 import time, datetime
 
@@ -125,6 +126,7 @@ class Beer_programming():
         while(not self.end[0]):
             if(self.conn_step[0] == ";;" or self.conn_step[0] == "<_"): self.conn_step.pop(0)
             self.sleep(compile_after=True, addr=addr)
+            for pl,v in self.players_last_drink.items(): print(f"player {pl} must drink {v}")
 
     # symbol_parse is used by the user and the client
     # to tell (into a queue) what the Server should do
@@ -247,7 +249,7 @@ class Beer_programming():
             if(not len(self.compile_at)):
                 self.compile_at.append(datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)) 
             elif(self.compile_at[0] < datetime.datetime.now()):
-                self.compile_at[0] = datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time)
+                self.compile_at[0] = datetime.datetime.now() + datetime.timedelta(seconds=self.compile_time-randint(0,20))
             
             sleep_time = (self.compile_at[0] - datetime.datetime.now()).seconds
 
