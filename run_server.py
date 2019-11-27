@@ -126,7 +126,9 @@ class Beer_programming():
         while(not self.end[0]):
             if(self.conn_step[0] == ";;" or self.conn_step[0] == "<_"): self.conn_step.pop(0)
             self.sleep(compile_after=True, addr=addr)
+            print("\n\n")
             for pl,v in self.players_last_drink.items(): print(f"player {pl} must drink {v}")
+            print("\n\n")
 
     # symbol_parse is used by the user and the client
     # to tell (into a queue) what the Server should do
