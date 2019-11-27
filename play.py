@@ -262,9 +262,9 @@ class Beer_programming():
                 self.driver.switch_to.window(self.tab)
 
                 self.driver.find_elements_by_xpath('''//*[@class='glyphicon glyphicon-stop']''').click()
-           except: pass
+            except: pass
 
-           try:
+            try:
                 self.driver.find_element_by_xpath("//*[@class='glyphicon glyphicon-play']").click()
                 
                 break
